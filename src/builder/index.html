@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Circuit UI Builder</title>
+    <link rel="stylesheet" href="../styles/circuit-ui.css">
+    <link rel="stylesheet" href="../styles/builder-ui.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Courier New', monospace;
+            background: #0a0a0f;
+            color: #ffffff;
+            overflow: hidden;
+        }
+        
+        .builder-container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .builder-header {
+            background: #1a1a2e;
+            padding: 10px 20px;
+            border-bottom: 1px solid #00ff88;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .builder-title {
+            margin: 0;
+            font-size: 18px;
+            color: #00ff88;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        
+        .builder-info {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .builder-content {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+        
+        #builder-canvas {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #0a0a0f 0%, #16213e 100%);
+        }
+        
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #2a3f5f;
+            border-top: 3px solid #00ff88;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            color: #00ff88;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .error-message {
+            background: #ff4444;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 4px;
+            margin: 20px;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="builder-container">
+        <div class="builder-header">
+            <h1 class="builder-title">Circuit UI Builder</h1>
+            <div class="builder-info">
+                Visual circuit board designer • Export to JSON • Import existing layouts
+            </div>
+        </div>
+        
+        <div class="builder-content" id="app">
+            <div class="loading">
+                <div class="loading-spinner"></div>
+                <div class="loading-text">Initializing Circuit UI Builder...</div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { UIBuilder } from '../lib/UIBuilder.ts';
+        import { BuilderUI } from '../lib/BuilderUI.ts';
+
+        // Initialize the builder
+        async function initializeBuilder() {
+            try {
+                const appContainer = document.getElementById('app');
+                
+                // Clear loading state
+                appContainer.innerHTML = '<div id="builder-canvas" style="width: 100%; height: 100%;"></div>';
+                
+                // Create the circuit UI builder
+                const builder = new UIBuilder({
+                    container: '#builder-canvas',
+                    theme: 'dark',
+                    grid: {
+                        enabled: true,
+                        size: 20,
+                        opacity: 0.1
+                    },
+                    zoom: {
+                        min: 0.1,
+                        max: 5,
+                        step: 0.1
+                    },
+                    pan: {
+                        momentum: true,
+                        edgeResistance: true
+                    }
+                });
+                
+                // Create the builder UI
+                const builderUI = new BuilderUI(builder, appContainer);
+                
+                // Add some initial content for demonstration
+                const welcomeNode = builder.addNode({
+                    id: 'welcome',
+                    position: { x: 300, y: 200 },
+                    content: `
+                        <div style="text-align: center;">
+                            <h3 style="margin: 0 0 10px 0; color: #00ff88;">Welcome to Circuit UI Builder!</h3>
+                            <p style="margin: 0; font-size: 11px;">
+                                • Press 1-4 to switch modes<br>
+                                • Ctrl+Z/Y for undo/redo<br>
+                                • Ctrl+C/V for copy/paste<br>
+                                • Delete key to remove selected items
+                            </p>
+                        </div>
+                    `,
+                    draggable: true,
+                    size: { width: 280, height: 120 }
+                });
+                
+                const instructionNode = builder.addNode({
+                    id: 'instructions',
+                    position: { x: 50, y: 400 },
+                    content: `
+                        <div>
+                            <h4 style="margin: 0 0 8px 0; color: #00ff88;">Getting Started:</h4>
+                            <ol style="margin: 0; padding-left: 16px; font-size: 10px; line-height: 1.4;">
+                                <li>Select mode: Choose Select, Add Node, Add Path, or Delete</li>
+                                <li>Add nodes: Click in Add Node mode to place new nodes</li>
+                                <li>Connect nodes: Click two nodes in Add Path mode</li>
+                                <li>Edit properties: Select items to modify in Properties panel</li>
+                                <li>Export: Save your circuit as JSON for reuse</li>
+                            </ol>
+                        </div>
+                    `,
+                    draggable: true,
+                    size: { width: 300, height: 140 }
+                });
+                
+                const templateNode = builder.addNode({
+                    id: 'templates',
+                    position: { x: 650, y: 400 },
+                    content: `
+                        <div>
+                            <h4 style="margin: 0 0 8px 0; color: #00ff88;">Templates:</h4>
+                            <p style="margin: 0; font-size: 10px; line-height: 1.4;">
+                                Use the Export panel to load pre-built templates:
+                                <br>• Simple Layout - Basic connected nodes
+                                <br>• Flowchart - Decision tree structure
+                                <br>• Or import your own JSON designs
+                            </p>
+                        </div>
+                    `,
+                    draggable: true,
+                    size: { width: 260, height: 120 }
+                });
+                
+                // Connect the demo nodes
+                builder.connectNodes('welcome', 'instructions');
+                builder.connectNodes('welcome', 'templates');
+                
+                // Zoom to fit the content
+                setTimeout(() => {
+                    builder.zoomToFit();
+                }, 500);
+                
+                // Global error handling
+                window.addEventListener('error', (event) => {
+                    console.error('Builder error:', event.error);
+                    document.getElementById('app').innerHTML = `
+                        <div class="error-message">
+                            <strong>Error initializing builder:</strong><br>
+                            ${event.error.message}
+                        </div>
+                    `;
+                });
+                
+                // Make builder available globally for debugging
+                window.circuitBuilder = builder;
+                window.builderUI = builderUI;
+                
+                console.log('Circuit UI Builder initialized successfully!');
+                console.log('Builder instance available at window.circuitBuilder');
+                console.log('Builder UI available at window.builderUI');
+                
+            } catch (error) {
+                console.error('Failed to initialize builder:', error);
+                document.getElementById('app').innerHTML = `
+                    <div class="error-message">
+                        <strong>Failed to initialize Circuit UI Builder:</strong><br>
+                        ${error.message}<br><br>
+                        <small>Check the console for more details.</small>
+                    </div>
+                `;
+            }
+        }
+        
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', initializeBuilder);
+        
+        // Handle page visibility changes
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden && window.circuitBuilder) {
+                // Refresh the canvas when page becomes visible
+                setTimeout(() => {
+                    window.circuitBuilder.getCanvas().getContainer().dispatchEvent(new Event('resize'));
+                }, 100);
+            }
+        });
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            if (window.circuitBuilder) {
+                setTimeout(() => {
+                    window.circuitBuilder.getCanvas().getContainer().dispatchEvent(new Event('resize'));
+                }, 100);
+            }
+        });
+    </script>
+</body>
+</html>

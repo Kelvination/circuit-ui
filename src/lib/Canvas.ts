@@ -573,4 +573,5 @@ export class Canvas {
   public getPathsGroup(): SVGGElement { return this.pathsGroup; }
   public getViewport(): Viewport { return { ...this.viewport }; }
   public getConfig(): Required<CanvasConfig> { return this.config; }
+  public resize(): void { this.handleResize(); }
 }

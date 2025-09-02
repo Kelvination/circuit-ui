@@ -353,6 +353,7 @@ export class Path {
   public getColor(): string { return this.config.color; }
   public getWidth(): number { return this.config.width; }
   public isAnimated(): boolean { return this.config.animated; }
+  public getClassName(): string { return this.config.className; }
   public getElement(): SVGGElement { return this.element; }
   public getConfig(): Required<PathConfig> { return { ...this.config }; }
 }

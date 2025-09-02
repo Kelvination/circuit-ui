@@ -36,7 +36,9 @@ export class Node {
       content: config.content || '',
       className: config.className || '',
       draggable: config.draggable ?? false,
-      zIndex: config.zIndex ?? 1
+      zIndex: config.zIndex ?? 1,
+      type: config.type || 'default',
+      data: config.data || {}
     };
   }
 
@@ -253,6 +255,14 @@ export class Node {
     this.config.content = content;
   }
 
+  public setData(data: Record<string, any>): void {
+    this.config.data = data;
+  }
+
+  public updateData(partialData: Record<string, any>): void {
+    this.config.data = { ...this.config.data, ...partialData };
+  }
+
   public setPosition(position: Position, animated = false): void {
     this.config.position = position;
     
@@ -371,6 +381,11 @@ export class Node {
   public getPosition(): Position { return { ...this.config.position }; }
   public getSize(): Size { return { ...this.config.size }; }
   public getContent(): string { return this.config.content; }
+  public getClassName(): string { return this.config.className; }
+  public isDraggable(): boolean { return this.config.draggable; }
+  public getZIndex(): number { return this.config.zIndex; }
+  public getType(): string { return this.config.type; }
+  public getData(): Record<string, any> { return { ...this.config.data }; }
   public getElement(): SVGGElement { return this.element; }
   public getConfig(): Required<NodeConfig> { return { ...this.config }; }
 }

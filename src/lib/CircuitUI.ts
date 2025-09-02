@@ -8,13 +8,17 @@ import {
   Position,
   Size,
   NavigationConfig,
-  Bounds
+  Bounds,
+  CircuitUISchema
 } from './types.js';
 
 export class CircuitUI {
   private canvas: Canvas;
   private nodes: Map<string, Node> = new Map();
   private paths: Map<string, Path> = new Map();
+  private activeNodeId?: string;
+  private navigationHistory: string[] = [];
+  protected eventListeners: Map<string, Function[]> = new Map();
 
   constructor(config: CanvasConfig) {
     this.canvas = new Canvas(config);
@@ -178,11 +182,28 @@ export class CircuitUI {
     console.log(`Target position: (${targetPosition.x.toFixed(1)}, ${targetPosition.y.toFixed(1)})`);
     console.log(`=================================\n`);
     
+    // Add to navigation history
+    if (this.activeNodeId && this.activeNodeId !== nodeId) {
+      this.navigationHistory.push(this.activeNodeId);
+    }
+    
+    // Set active node
+    if (this.activeNodeId) {
+      const previousNode = this.nodes.get(this.activeNodeId);
+      previousNode?.setFocused(false);
+    }
+    
+    this.activeNodeId = nodeId;
+    node.setFocused(true);
+    
     // Animate to target position and zoom
     await this.animateViewport(targetPosition, targetZoom, navigationConfig);
     
     // Highlight the node
     node.pulse('#ffaa00', 1000);
+    
+    // Emit navigation event
+    this.emit('node-navigated', { nodeId, node });
   }
 
   public async panTo(position: Position, duration = 800): Promise<void> {
@@ -383,6 +404,126 @@ export class CircuitUI {
     this.paths.forEach(path => path.destroy());
     this.nodes.clear();
     this.paths.clear();
+  }
+
+  // Export/Import functionality
+  public toSchema(): CircuitUISchema {
+    const nodes: NodeConfig[] = [];
+    const paths: PathConfig[] = [];
+    
+    // Export all nodes
+    this.nodes.forEach(node => {
+      nodes.push({
+        id: node.getId(),
+        position: node.getPosition(),
+        size: node.getSize(),
+        content: node.getContent(),
+        className: node.getClassName(),
+        draggable: node.isDraggable(),
+        zIndex: node.getZIndex(),
+        type: node.getType(),
+        data: node.getData()
+      });
+    });
+    
+    // Export all paths
+    this.paths.forEach(path => {
+      paths.push({
+        id: path.getId(),
+        waypoints: path.getWaypoints(),
+        width: path.getWidth(),
+        color: path.getColor(),
+        animated: path.isAnimated(),
+        className: path.getClassName()
+      });
+    });
+    
+    return {
+      version: '1.0.0',
+      metadata: {
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      },
+      canvas: this.canvas.getConfig(),
+      nodes,
+      paths
+    };
+  }
+  
+  public static fromSchema(schema: CircuitUISchema, container?: string | HTMLElement): CircuitUI {
+    // Use provided container or extract from schema
+    const canvasConfig: CanvasConfig = {
+      ...schema.canvas,
+      container: container || schema.canvas.container
+    };
+    
+    const circuitUI = new CircuitUI(canvasConfig);
+    
+    // Add all nodes
+    schema.nodes.forEach(nodeConfig => {
+      circuitUI.addNode(nodeConfig);
+    });
+    
+    // Add all paths
+    schema.paths.forEach(pathConfig => {
+      circuitUI.addPath(pathConfig);
+    });
+    
+    return circuitUI;
+  }
+  
+  public exportToJSON(): string {
+    return JSON.stringify(this.toSchema(), null, 2);
+  }
+  
+  public static importFromJSON(json: string, container?: string | HTMLElement): CircuitUI {
+    const schema = JSON.parse(json) as CircuitUISchema;
+    return CircuitUI.fromSchema(schema, container);
+  }
+
+  // Event system
+  public on(event: string, listener: Function): void {
+    if (!this.eventListeners.has(event)) {
+      this.eventListeners.set(event, []);
+    }
+    this.eventListeners.get(event)!.push(listener);
+  }
+
+  public off(event: string, listener: Function): void {
+    const listeners = this.eventListeners.get(event);
+    if (listeners) {
+      const index = listeners.indexOf(listener);
+      if (index > -1) {
+        listeners.splice(index, 1);
+      }
+    }
+  }
+
+  protected emit(event: string, data?: any): void {
+    const listeners = this.eventListeners.get(event);
+    if (listeners) {
+      listeners.forEach(listener => listener(data));
+    }
+  }
+
+  // Navigation helpers
+  public navigateBack(): void {
+    if (this.navigationHistory.length > 0) {
+      const previousNodeId = this.navigationHistory.pop()!;
+      this.navigateToNode(previousNodeId);
+    }
+  }
+
+  public getActiveNode(): Node | undefined {
+    return this.activeNodeId ? this.nodes.get(this.activeNodeId) : undefined;
+  }
+
+  public getActiveNodeId(): string | undefined {
+    return this.activeNodeId;
+  }
+
+  public getNavigationHistory(): string[] {
+    return [...this.navigationHistory];
   }
 
   // Static factory method

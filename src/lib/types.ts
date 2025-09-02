@@ -25,6 +25,8 @@ export interface NodeConfig {
   className?: string;
   draggable?: boolean;
   zIndex?: number;
+  type?: string; // For component-based nodes
+  data?: Record<string, any>; // Props for component
 }
 
 export interface NodeStyle {
@@ -177,3 +179,112 @@ export const CIRCUIT_ANGLES = {
 } as const;
 
 export type CircuitAngle = typeof CIRCUIT_ANGLES[keyof typeof CIRCUIT_ANGLES];
+
+// UI Builder and Schema types
+export interface CircuitUIMetadata {
+  name?: string;
+  description?: string;
+  author?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CircuitUISchema {
+  version: string;
+  metadata?: CircuitUIMetadata;
+  canvas: CanvasConfig;
+  nodes: NodeConfig[];
+  paths: PathConfig[];
+}
+
+export interface UIBuilderConfig {
+  toolbar?: {
+    position: 'top' | 'bottom' | 'left' | 'right';
+    collapsed?: boolean;
+  };
+  panels?: {
+    properties?: boolean;
+    layers?: boolean;
+    export?: boolean;
+  };
+  shortcuts?: {
+    enabled: boolean;
+    customKeys?: Record<string, string>;
+  };
+}
+
+// Component-based node system
+export interface NodeTypeDefinition {
+  type: string;
+  label: string;
+  defaultSize: Size;
+  minSize?: Size;
+  maxSize?: Size;
+  resizable?: boolean;
+  icon?: string;
+  description?: string;
+  defaultData?: Record<string, any>;
+}
+
+export interface ComponentNodeConfig extends NodeConfig {
+  type: string; // Required for component nodes
+  data: Record<string, any>; // Required props
+}
+
+// React integration types
+export interface NodeComponentProps {
+  nodeId: string;
+  data: Record<string, any>;
+  circuit: any; // CircuitUI instance
+  onNavigate?: (nodeId: string) => void;
+}
+
+export type NodeComponent = any; // React.ComponentType<NodeComponentProps> when React is available
+
+export interface NodeRegistry {
+  [type: string]: NodeComponent;
+}
+
+// Navigation and interaction
+export interface NavigationTarget {
+  nodeId: string;
+  zoom?: number;
+  center?: boolean;
+  highlight?: boolean;
+  duration?: number;
+}
+
+export interface NodeActivation {
+  nodeId: string;
+  active: boolean;
+  timestamp: number;
+}
+
+// Layout relationships
+export interface LayoutRelationship {
+  parent?: string;
+  children?: string[];
+  anchor?: boolean;
+  autoPosition?: 'radial' | 'grid' | 'flow' | 'cluster';
+  spacing?: number;
+}
+
+export interface EnhancedNodeConfig extends NodeConfig {
+  layout?: LayoutRelationship;
+  constraints?: {
+    minSize?: Size;
+    maxSize?: Size;
+    fixedSize?: boolean;
+    lockAspectRatio?: boolean;
+  };
+}
+
+// Enhanced schema for component-based circuits
+export interface EnhancedCircuitUISchema extends CircuitUISchema {
+  nodeTypes?: NodeTypeDefinition[];
+  layout?: {
+    autoArrange?: boolean;
+    spacing?: number;
+    algorithm?: 'force' | 'hierarchical' | 'radial';
+  };
+}
