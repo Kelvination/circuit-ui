@@ -1,0 +1,1 @@
+- Don't put anything related to Claude Code or anything like that in commits or PRs, make all comments and commit messages sound just like a normal developer is working on them
