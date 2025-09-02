@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.2] - 2025-09-02
+
+### Enhanced
+- Updated CLAUDE.md with comprehensive codebase documentation including architecture overview, development commands, and TypeScript configuration details
+
 ## [1.0.1] - 2025-09-02
 
 ### Fixed
