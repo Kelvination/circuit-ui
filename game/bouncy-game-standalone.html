@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>Bouncy Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            position: fixed;
+            -webkit-user-select: none;
+            user-select: none;
+            touch-action: none;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(to bottom, #1a1a2e 0%, #16213e 100%);
+        }
+
+        #game-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        #game-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            touch-action: none;
+        }
+
+        #score {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #fff;
+            font-size: 24px;
+            font-weight: bold;
+            z-index: 10;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        #instructions {
+            position: absolute;
+            bottom: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 16px;
+            z-index: 10;
+            text-align: center;
+            padding: 0 20px;
+            animation: fadeInOut 2s ease-in-out infinite;
+        }
+
+        @keyframes fadeInOut {
+            0%, 100% {
+                opacity: 0.4;
+            }
+            50% {
+                opacity: 1;
+            }
+        }
+
+        @media (min-width: 768px) {
+            #score {
+                font-size: 32px;
+                top: 30px;
+            }
+
+            #instructions {
+                font-size: 20px;
+                bottom: 140px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="score">Score: <span id="score-value">0</span></div>
+        <canvas id="game-canvas"></canvas>
+        <div id="instructions">Pull down on the slingshot to launch!</div>
+    </div>
+    <script>
+        class BouncyGame {
+            constructor() {
+                this.canvas = document.getElementById('game-canvas');
+                const context = this.canvas.getContext('2d');
+
+                if (!context) {
+                    throw new Error('Could not get canvas context');
+                }
+
+                this.ctx = context;
+                this.GRAVITY = 0.5;
+                this.MAX_DRAG_DISTANCE = 150;
+                this.BALL_RADIUS = 15;
+                this.SLINGSHOT_Y_OFFSET = 80;
+                this.animationId = null;
+                this.score = 0;
+
+                this.setupCanvas();
+                this.ball = this.createBall();
+                this.slingshot = this.createSlingshot();
+                this.targets = [];
+                this.createTargets();
+                this.setupEventListeners();
+                this.start();
+            }
+
+            setupCanvas() {
+                const resizeCanvas = () => {
+                    this.canvas.width = window.innerWidth;
+                    this.canvas.height = window.innerHeight;
+
+                    if (this.slingshot) {
+                        this.slingshot.anchorLeft = {
+                            x: this.canvas.width / 2 - 60,
+                            y: this.canvas.height - this.SLINGSHOT_Y_OFFSET
+                        };
+                        this.slingshot.anchorRight = {
+                            x: this.canvas.width / 2 + 60,
+                            y: this.canvas.height - this.SLINGSHOT_Y_OFFSET
+                        };
+                    }
+
+                    if (this.ball && !this.ball.isLaunched) {
+                        this.ball.position = {
+                            x: this.canvas.width / 2,
+                            y: this.canvas.height - this.SLINGSHOT_Y_OFFSET
+                        };
+                    }
+
+                    this.createTargets();
+                };
+
+                resizeCanvas();
+                window.addEventListener('resize', resizeCanvas);
+            }
+
+            createBall() {
+                return {
+                    position: {
+                        x: this.canvas.width / 2,
+                        y: this.canvas.height - this.SLINGSHOT_Y_OFFSET
+                    },
+                    velocity: { x: 0, y: 0 },
+                    radius: this.BALL_RADIUS,
+                    isLaunched: false,
+                    isActive: true
+                };
+            }
+
+            createSlingshot() {
+                return {
+                    isDragging: false,
+                    dragPosition: null,
+                    anchorLeft: {
+                        x: this.canvas.width / 2 - 60,
+                        y: this.canvas.height - this.SLINGSHOT_Y_OFFSET
+                    },
+                    anchorRight: {
+                        x: this.canvas.width / 2 + 60,
+                        y: this.canvas.height - this.SLINGSHOT_Y_OFFSET
+                    }
+                };
+            }
+
+            createTargets() {
+                this.targets = [];
+                const targetWidth = 60;
+                const targetHeight = 60;
+                const spacing = 20;
+                const topMargin = 50;
+
+                const availableWidth = this.canvas.width - spacing * 2;
+                const targetCount = Math.floor(availableWidth / (targetWidth + spacing));
+                const totalWidth = targetCount * targetWidth + (targetCount - 1) * spacing;
+                const startX = (this.canvas.width - totalWidth) / 2;
+
+                const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '#6c5ce7'];
+
+                for (let i = 0; i < targetCount; i++) {
+                    this.targets.push({
+                        position: {
+                            x: startX + i * (targetWidth + spacing),
+                            y: topMargin
+                        },
+                        width: targetWidth,
+                        height: targetHeight,
+                        isActive: true,
+                        color: colors[i % colors.length]
+                    });
+                }
+            }
+
+            setupEventListeners() {
+                this.canvas.addEventListener('touchstart', this.handleTouchStart.bind(this), { passive: false });
+                this.canvas.addEventListener('touchmove', this.handleTouchMove.bind(this), { passive: false });
+                this.canvas.addEventListener('touchend', this.handleTouchEnd.bind(this), { passive: false });
+
+                this.canvas.addEventListener('mousedown', this.handleMouseDown.bind(this));
+                this.canvas.addEventListener('mousemove', this.handleMouseMove.bind(this));
+                this.canvas.addEventListener('mouseup', this.handleMouseUp.bind(this));
+            }
+
+            getTouchPosition(e) {
+                e.preventDefault();
+                const rect = this.canvas.getBoundingClientRect();
+                const touch = e.touches[0] || e.changedTouches[0];
+                return {
+                    x: touch.clientX - rect.left,
+                    y: touch.clientY - rect.top
+                };
+            }
+
+            getMousePosition(e) {
+                const rect = this.canvas.getBoundingClientRect();
+                return {
+                    x: e.clientX - rect.left,
+                    y: e.clientY - rect.top
+                };
+            }
+
+            handleTouchStart(e) {
+                if (!this.ball.isLaunched) {
+                    const pos = this.getTouchPosition(e);
+                    this.startDrag(pos);
+                }
+            }
+
+            handleTouchMove(e) {
+                if (this.slingshot.isDragging) {
+                    const pos = this.getTouchPosition(e);
+                    this.updateDrag(pos);
+                }
+            }
+
+            handleTouchEnd(e) {
+                if (this.slingshot.isDragging) {
+                    e.preventDefault();
+                    this.endDrag();
+                }
+            }
+
+            handleMouseDown(e) {
+                if (!this.ball.isLaunched) {
+                    const pos = this.getMousePosition(e);
+                    this.startDrag(pos);
+                }
+            }
+
+            handleMouseMove(e) {
+                if (this.slingshot.isDragging) {
+                    const pos = this.getMousePosition(e);
+                    this.updateDrag(pos);
+                }
+            }
+
+            handleMouseUp() {
+                if (this.slingshot.isDragging) {
+                    this.endDrag();
+                }
+            }
+
+            startDrag(pos) {
+                const slingshotCenter = {
+                    x: (this.slingshot.anchorLeft.x + this.slingshot.anchorRight.x) / 2,
+                    y: this.slingshot.anchorLeft.y
+                };
+
+                const distance = Math.sqrt(
+                    Math.pow(pos.x - slingshotCenter.x, 2) +
+                    Math.pow(pos.y - slingshotCenter.y, 2)
+                );
+
+                if (distance < 100) {
+                    this.slingshot.isDragging = true;
+                    this.slingshot.dragPosition = pos;
+                }
+            }
+
+            updateDrag(pos) {
+                const slingshotCenter = {
+                    x: (this.slingshot.anchorLeft.x + this.slingshot.anchorRight.x) / 2,
+                    y: this.slingshot.anchorLeft.y
+                };
+
+                const dx = pos.x - slingshotCenter.x;
+                const dy = pos.y - slingshotCenter.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance > this.MAX_DRAG_DISTANCE) {
+                    const angle = Math.atan2(dy, dx);
+                    this.slingshot.dragPosition = {
+                        x: slingshotCenter.x + Math.cos(angle) * this.MAX_DRAG_DISTANCE,
+                        y: slingshotCenter.y + Math.sin(angle) * this.MAX_DRAG_DISTANCE
+                    };
+                } else {
+                    this.slingshot.dragPosition = pos;
+                }
+
+                this.ball.position = { ...this.slingshot.dragPosition };
+            }
+
+            endDrag() {
+                if (this.slingshot.dragPosition) {
+                    const slingshotCenter = {
+                        x: (this.slingshot.anchorLeft.x + this.slingshot.anchorRight.x) / 2,
+                        y: this.slingshot.anchorLeft.y
+                    };
+
+                    const dx = slingshotCenter.x - this.slingshot.dragPosition.x;
+                    const dy = slingshotCenter.y - this.slingshot.dragPosition.y;
+
+                    const power = 0.15;
+                    this.ball.velocity = {
+                        x: dx * power,
+                        y: dy * power
+                    };
+
+                    this.ball.isLaunched = true;
+                }
+
+                this.slingshot.isDragging = false;
+                this.slingshot.dragPosition = null;
+            }
+
+            updatePhysics() {
+                if (!this.ball.isLaunched || !this.ball.isActive) return;
+
+                this.ball.velocity.y += this.GRAVITY;
+
+                this.ball.position.x += this.ball.velocity.x;
+                this.ball.position.y += this.ball.velocity.y;
+
+                if (this.ball.position.x - this.ball.radius < 0 ||
+                    this.ball.position.x + this.ball.radius > this.canvas.width) {
+                    this.ball.velocity.x *= -0.8;
+                    this.ball.position.x = Math.max(
+                        this.ball.radius,
+                        Math.min(this.canvas.width - this.ball.radius, this.ball.position.x)
+                    );
+                }
+
+                if (this.ball.position.y - this.ball.radius > this.canvas.height) {
+                    this.resetBall();
+                }
+
+                this.checkTargetCollisions();
+            }
+
+            checkTargetCollisions() {
+                this.targets.forEach(target => {
+                    if (!target.isActive) return;
+
+                    const closestX = Math.max(
+                        target.position.x,
+                        Math.min(this.ball.position.x, target.position.x + target.width)
+                    );
+                    const closestY = Math.max(
+                        target.position.y,
+                        Math.min(this.ball.position.y, target.position.y + target.height)
+                    );
+
+                    const distanceX = this.ball.position.x - closestX;
+                    const distanceY = this.ball.position.y - closestY;
+                    const distanceSquared = distanceX * distanceX + distanceY * distanceY;
+
+                    if (distanceSquared < this.ball.radius * this.ball.radius) {
+                        target.isActive = false;
+                        this.score += 10;
+                        this.updateScore();
+
+                        if (this.ball.position.y < target.position.y) {
+                            this.ball.velocity.y *= -0.7;
+                        } else {
+                            this.ball.velocity.y *= 0.7;
+                        }
+
+                        if (this.targets.every(t => !t.isActive)) {
+                            setTimeout(() => {
+                                this.createTargets();
+                            }, 1000);
+                        }
+                    }
+                });
+            }
+
+            resetBall() {
+                this.ball = this.createBall();
+            }
+
+            updateScore() {
+                const scoreElement = document.getElementById('score-value');
+                if (scoreElement) {
+                    scoreElement.textContent = this.score.toString();
+                }
+            }
+
+            render() {
+                this.ctx.fillStyle = '#1a1a2e';
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+                this.targets.forEach(target => {
+                    if (target.isActive) {
+                        this.ctx.fillStyle = target.color;
+                        this.ctx.fillRect(
+                            target.position.x,
+                            target.position.y,
+                            target.width,
+                            target.height
+                        );
+
+                        this.ctx.strokeStyle = '#fff';
+                        this.ctx.lineWidth = 2;
+                        this.ctx.strokeRect(
+                            target.position.x,
+                            target.position.y,
+                            target.width,
+                            target.height
+                        );
+                    }
+                });
+
+                this.ctx.strokeStyle = '#fff';
+                this.ctx.lineWidth = 4;
+                this.ctx.lineCap = 'round';
+
+                if (this.slingshot.isDragging && this.slingshot.dragPosition) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(this.slingshot.anchorLeft.x, this.slingshot.anchorLeft.y);
+                    this.ctx.lineTo(this.slingshot.dragPosition.x, this.slingshot.dragPosition.y);
+                    this.ctx.lineTo(this.slingshot.anchorRight.x, this.slingshot.anchorRight.y);
+                    this.ctx.stroke();
+                } else if (!this.ball.isLaunched) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(this.slingshot.anchorLeft.x, this.slingshot.anchorLeft.y);
+                    this.ctx.lineTo(this.ball.position.x, this.ball.position.y);
+                    this.ctx.lineTo(this.slingshot.anchorRight.x, this.slingshot.anchorRight.y);
+                    this.ctx.stroke();
+                }
+
+                this.ctx.fillStyle = '#666';
+                this.ctx.beginPath();
+                this.ctx.arc(this.slingshot.anchorLeft.x, this.slingshot.anchorLeft.y, 8, 0, Math.PI * 2);
+                this.ctx.fill();
+                this.ctx.beginPath();
+                this.ctx.arc(this.slingshot.anchorRight.x, this.slingshot.anchorRight.y, 8, 0, Math.PI * 2);
+                this.ctx.fill();
+
+                if (this.ball.isActive) {
+                    const gradient = this.ctx.createRadialGradient(
+                        this.ball.position.x - 5,
+                        this.ball.position.y - 5,
+                        0,
+                        this.ball.position.x,
+                        this.ball.position.y,
+                        this.ball.radius
+                    );
+                    gradient.addColorStop(0, '#fff');
+                    gradient.addColorStop(1, '#00d4ff');
+
+                    this.ctx.fillStyle = gradient;
+                    this.ctx.beginPath();
+                    this.ctx.arc(
+                        this.ball.position.x,
+                        this.ball.position.y,
+                        this.ball.radius,
+                        0,
+                        Math.PI * 2
+                    );
+                    this.ctx.fill();
+
+                    this.ctx.strokeStyle = '#fff';
+                    this.ctx.lineWidth = 2;
+                    this.ctx.stroke();
+                }
+            }
+
+            gameLoop() {
+                this.updatePhysics();
+                this.render();
+                this.animationId = requestAnimationFrame(() => this.gameLoop());
+            }
+
+            start() {
+                this.gameLoop();
+            }
+
+            stop() {
+                if (this.animationId !== null) {
+                    cancelAnimationFrame(this.animationId);
+                    this.animationId = null;
+                }
+            }
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                new BouncyGame();
+            });
+        } else {
+            new BouncyGame();
+        }
+    </script>
+</body>
+</html>

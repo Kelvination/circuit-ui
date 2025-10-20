@@ -10,7 +10,9 @@
     "dev": "vite --host",
     "demo": "vite --host --open /",
     "builder": "vite --host --open /src/builder/",
+    "game": "vite --config vite.game.config.ts --host",
     "build": "tsc && vite build",
+    "build:game": "vite build --config vite.game.config.ts",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit"
   },

@@ -1,5 +1,18 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- **Bouncy Game** - Mobile-first gravity-based slingshot game
+  - Pull-down slingshot mechanic with touch and mouse controls
+  - Physics simulation with gravity and collision detection
+  - Colorful targets that regenerate when all are destroyed
+  - Score tracking system
+  - Responsive design optimized for mobile devices
+  - Standalone HTML version for easy deployment and Claude Artifact publishing
+  - Separate Vite configuration for game development
+  - Game-specific npm scripts: `pnpm game` and `pnpm build:game`
+
 ## [2.0.0] - 2025-09-02
 
 ### Major Breaking Changes
