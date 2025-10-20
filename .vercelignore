@@ -1,0 +1,9 @@
+node_modules
+.git
+src
+dist
+*.md
+!game/README.md
+.github
+.vscode
+*.log

@@ -12,6 +12,11 @@
   - Standalone HTML version for easy deployment and Claude Artifact publishing
   - Separate Vite configuration for game development
   - Game-specific npm scripts: `pnpm game` and `pnpm build:game`
+- **Vercel Deployment Configuration**
+  - vercel.json configuration for automatic deployments
+  - .vercelignore to optimize deployment size
+  - Comprehensive deployment guide (DEPLOY.md)
+  - Ready for one-click deployment via Vercel GitHub integration
 
 ## [2.0.0] - 2025-09-02
 

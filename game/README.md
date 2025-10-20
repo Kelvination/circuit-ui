@@ -2,6 +2,10 @@
 
 A mobile-first gravity-based slingshot game where you launch a ball at targets using a pull-down slingshot mechanic.
 
+## Deploy to Vercel (Free!)
+
+Want to play this on your phone? Check out the [complete deployment guide](../DEPLOY.md) for step-by-step instructions to deploy to Vercel for free!
+
 ## How to Play
 
 1. Pull down on the slingshot at the bottom of the screen

@@ -1,0 +1,6 @@
+{
+  "buildCommand": "pnpm build:game",
+  "outputDirectory": "dist-game",
+  "devCommand": "pnpm game",
+  "installCommand": "pnpm install"
+}
